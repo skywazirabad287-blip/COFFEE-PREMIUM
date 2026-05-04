@@ -3,23 +3,41 @@ const app = express();
 
 app.use(express.json());
 
+// ===== DATA =====
 let menu = [
   { name: "Latte", price: 4 },
   { name: "Banoffee Latte", price: 5 },
   { name: "Matcha", price: 4 }
 ];
 
-app.get("/api/menu", (req, res) => {
-  res.json(menu);
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "admin123";
+
+// ===== API =====
+app.get("/api/menu", (req, res) => res.json(menu));
+
+app.post("/api/menu", (req, res) => {
+  const { name, price } = req.body;
+  menu.push({ name, price });
+  res.send("Added");
 });
 
+app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    return res.json({ success: true });
+  }
+  res.status(403).json({ success: false });
+});
+
+// ===== MAIN SITE =====
 app.get("/", (req, res) => {
   res.send(`
 <!DOCTYPE html>
 <html>
 <head>
-<title>1016 Cafe</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1016 Cafe</title>
 
 <style>
 body {
@@ -32,7 +50,6 @@ body {
 .hero {
   height:100vh;
   display:flex;
-  flex-direction:column;
   justify-content:center;
   align-items:center;
   background:url('https://images.unsplash.com/photo-1509042239860-f550ce710b93') center/cover;
@@ -50,16 +67,6 @@ body {
 .hero-content {
   position:relative;
   text-align:center;
-  animation:fadeUp 1.5s ease;
-}
-
-h1 {
-  font-size:4rem;
-  letter-spacing:2px;
-}
-
-p {
-  opacity:0.8;
 }
 
 .menu {
@@ -70,21 +77,10 @@ p {
 }
 
 .card {
-  backdrop-filter: blur(15px);
+  backdrop-filter: blur(10px);
   background:rgba(255,255,255,0.05);
   border-radius:15px;
   padding:20px;
-  transition:0.3s;
-}
-
-.card:hover {
-  transform:translateY(-5px) scale(1.02);
-  background:rgba(255,255,255,0.1);
-}
-
-@keyframes fadeUp {
-  from { opacity:0; transform:translateY(40px); }
-  to { opacity:1; transform:translateY(0); }
 }
 </style>
 </head>
@@ -114,6 +110,61 @@ fetch('/api/menu')
     \`;
   });
 });
+</script>
+
+</body>
+</html>
+`);
+});
+
+// ===== ADMIN PANEL =====
+app.get("/admin", (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html>
+<body style="font-family:Arial; padding:40px">
+
+<h2>Admin Login</h2>
+<input id="user" placeholder="username"><br><br>
+<input id="pass" type="password" placeholder="password"><br><br>
+<button onclick="login()">Login</button>
+
+<div id="panel" style="display:none;">
+  <h2>Add Menu Item</h2>
+  <input id="name" placeholder="Coffee name"><br><br>
+  <input id="price" placeholder="Price"><br><br>
+  <button onclick="add()">Add</button>
+</div>
+
+<script>
+function login(){
+  fetch('/api/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      username:document.getElementById('user').value,
+      password:document.getElementById('pass').value
+    })
+  })
+  .then(res=>res.json())
+  .then(d=>{
+    if(d.success){
+      document.getElementById('panel').style.display='block';
+      alert("Logged in");
+    } else alert("Wrong login");
+  });
+}
+
+function add(){
+  fetch('/api/menu',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name:document.getElementById('name').value,
+      price:document.getElementById('price').value
+    })
+  }).then(()=>alert("Added"));
+}
 </script>
 
 </body>
