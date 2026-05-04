@@ -18,6 +18,7 @@ app.get("/api/menu", (req, res) => res.json(menu));
 
 app.post("/api/menu", (req, res) => {
   const { name, price } = req.body;
+  if (!name || !price) return res.status(400).send("Missing data");
   menu.push({ name, price });
   res.send("Added");
 });
@@ -30,7 +31,7 @@ app.post("/api/login", (req, res) => {
   res.status(403).json({ success: false });
 });
 
-// ===== MAIN SITE =====
+// ===== MAIN WEBSITE =====
 app.get("/", (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -77,10 +78,15 @@ body {
 }
 
 .card {
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
   background:rgba(255,255,255,0.05);
   border-radius:15px;
   padding:20px;
+  transition:0.3s;
+}
+
+.card:hover {
+  transform:translateY(-5px);
 }
 </style>
 </head>
@@ -101,6 +107,7 @@ fetch('/api/menu')
 .then(res => res.json())
 .then(data => {
   const menu = document.getElementById('menu');
+  menu.innerHTML = '';
   data.forEach(item => {
     menu.innerHTML += \`
       <div class="card">
@@ -122,18 +129,23 @@ app.get("/admin", (req, res) => {
   res.send(`
 <!DOCTYPE html>
 <html>
-<body style="font-family:Arial; padding:40px">
+<head>
+<title>Admin</title>
+</head>
+<body style="font-family:Arial; padding:40px; background:#111; color:white">
 
 <h2>Admin Login</h2>
+
 <input id="user" placeholder="username"><br><br>
 <input id="pass" type="password" placeholder="password"><br><br>
+
 <button onclick="login()">Login</button>
 
-<div id="panel" style="display:none;">
+<div id="panel" style="display:none; margin-top:30px;">
   <h2>Add Menu Item</h2>
   <input id="name" placeholder="Coffee name"><br><br>
   <input id="price" placeholder="Price"><br><br>
-  <button onclick="add()">Add</button>
+  <button onclick="add()">Add Item</button>
 </div>
 
 <script>
@@ -150,8 +162,10 @@ function login(){
   .then(d=>{
     if(d.success){
       document.getElementById('panel').style.display='block';
-      alert("Logged in");
-    } else alert("Wrong login");
+      alert("Login successful");
+    } else {
+      alert("Wrong credentials");
+    }
   });
 }
 
@@ -163,7 +177,8 @@ function add(){
       name:document.getElementById('name').value,
       price:document.getElementById('price').value
     })
-  }).then(()=>alert("Added"));
+  })
+  .then(()=>alert("Item added!"));
 }
 </script>
 
@@ -172,5 +187,6 @@ function add(){
 `);
 });
 
+// ===== START SERVER =====
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Running"));
+app.listen(PORT, () => console.log("Server running"));
