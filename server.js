@@ -1,27 +1,28 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const app = express();
 
 app.use(express.json());
 
-// ===== DATA =====
-let menu = [
-  { name: "Latte", price: 4 },
-  { name: "Banoffee Latte", price: 5 },
-  { name: "Matcha", price: 4 }
-];
+// ===== CONNECT DB =====
+mongoose.connect(process.env.MONGO_URI)
+.then(() => console.log("DB Connected"))
+.catch(err => console.log(err));
 
+// ===== MODELS =====
+const Menu = mongoose.model("Menu", {
+  name: String,
+  price: Number
+});
+
+const Review = mongoose.model("Review", {
+  name: String,
+  text: String
+});
+
+// ===== ADMIN LOGIN =====
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "admin123";
-
-// ===== API =====
-app.get("/api/menu", (req, res) => res.json(menu));
-
-app.post("/api/menu", (req, res) => {
-  const { name, price } = req.body;
-  if (!name || !price) return res.status(400).send("Missing data");
-  menu.push({ name, price });
-  res.send("Added");
-});
 
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
@@ -31,92 +32,90 @@ app.post("/api/login", (req, res) => {
   res.status(403).json({ success: false });
 });
 
-// ===== MAIN WEBSITE =====
+// ===== MENU =====
+app.get("/api/menu", async (req, res) => {
+  const data = await Menu.find();
+  res.json(data);
+});
+
+app.post("/api/menu", async (req, res) => {
+  const item = new Menu(req.body);
+  await item.save();
+  res.send("Saved");
+});
+
+// ===== REVIEWS =====
+app.get("/api/reviews", async (req, res) => {
+  const data = await Review.find();
+  res.json(data);
+});
+
+app.post("/api/reviews", async (req, res) => {
+  const review = new Review(req.body);
+  await review.save();
+  res.send("Review added");
+});
+
+// ===== FRONTEND =====
 app.get("/", (req, res) => {
   res.send(`
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>1016 Cafe</title>
-
 <style>
-body {
-  margin:0;
-  font-family: 'Segoe UI', sans-serif;
-  background:#0a0a0a;
-  color:white;
-}
-
-.hero {
-  height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background:url('https://images.unsplash.com/photo-1509042239860-f550ce710b93') center/cover;
-  position:relative;
-}
-
-.hero::after {
-  content:'';
-  position:absolute;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.6);
-}
-
-.hero-content {
-  position:relative;
-  text-align:center;
-}
-
-.menu {
-  padding:60px 20px;
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(250px,1fr));
-  gap:20px;
-}
-
-.card {
-  backdrop-filter: blur(12px);
-  background:rgba(255,255,255,0.05);
-  border-radius:15px;
-  padding:20px;
-  transition:0.3s;
-}
-
-.card:hover {
-  transform:translateY(-5px);
-}
+body { background:#111; color:white; font-family:sans-serif; }
+.section { padding:40px; }
+.card { background:#222; padding:15px; margin:10px; border-radius:10px; }
 </style>
 </head>
-
 <body>
 
-<div class="hero">
-  <div class="hero-content">
-    <h1>1016 Cafe ☕</h1>
-    <p>Premium Coffee Experience</p>
-  </div>
+<h1>1016 Cafe ☕</h1>
+
+<div class="section">
+<h2>Menu</h2>
+<div id="menu"></div>
 </div>
 
-<div class="menu" id="menu"></div>
+<div class="section">
+<h2>Reviews</h2>
+<div id="reviews"></div>
+
+<input id="rname" placeholder="Your name">
+<input id="rtext" placeholder="Your review">
+<button onclick="addReview()">Submit</button>
+</div>
 
 <script>
 fetch('/api/menu')
-.then(res => res.json())
-.then(data => {
-  const menu = document.getElementById('menu');
-  menu.innerHTML = '';
-  data.forEach(item => {
-    menu.innerHTML += \`
-      <div class="card">
-        <h3>\${item.name}</h3>
-        <p>$\${item.price}</p>
-      </div>
-    \`;
+.then(r=>r.json())
+.then(d=>{
+  const el=document.getElementById('menu');
+  d.forEach(i=>{
+    el.innerHTML += '<div class="card">'+i.name+' - $'+i.price+'</div>';
   });
 });
+
+fetch('/api/reviews')
+.then(r=>r.json())
+.then(d=>{
+  const el=document.getElementById('reviews');
+  d.forEach(i=>{
+    el.innerHTML += '<div class="card">'+i.name+': '+i.text+'</div>';
+  });
+});
+
+function addReview(){
+  fetch('/api/reviews',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name:document.getElementById('rname').value,
+      text:document.getElementById('rtext').value
+    })
+  }).then(()=>location.reload());
+}
 </script>
 
 </body>
@@ -124,51 +123,15 @@ fetch('/api/menu')
 `);
 });
 
-// ===== ADMIN PANEL =====
+// ===== ADMIN =====
 app.get("/admin", (req, res) => {
   res.send(`
-<!DOCTYPE html>
-<html>
-<head>
-<title>Admin</title>
-</head>
-<body style="font-family:Arial; padding:40px; background:#111; color:white">
-
-<h2>Admin Login</h2>
-
-<input id="user" placeholder="username"><br><br>
-<input id="pass" type="password" placeholder="password"><br><br>
-
-<button onclick="login()">Login</button>
-
-<div id="panel" style="display:none; margin-top:30px;">
-  <h2>Add Menu Item</h2>
-  <input id="name" placeholder="Coffee name"><br><br>
-  <input id="price" placeholder="Price"><br><br>
-  <button onclick="add()">Add Item</button>
-</div>
+<h2>Admin Panel</h2>
+<input id="name" placeholder="Coffee">
+<input id="price" placeholder="Price">
+<button onclick="add()">Add</button>
 
 <script>
-function login(){
-  fetch('/api/login',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      username:document.getElementById('user').value,
-      password:document.getElementById('pass').value
-    })
-  })
-  .then(res=>res.json())
-  .then(d=>{
-    if(d.success){
-      document.getElementById('panel').style.display='block';
-      alert("Login successful");
-    } else {
-      alert("Wrong credentials");
-    }
-  });
-}
-
 function add(){
   fetch('/api/menu',{
     method:'POST',
@@ -177,16 +140,10 @@ function add(){
       name:document.getElementById('name').value,
       price:document.getElementById('price').value
     })
-  })
-  .then(()=>alert("Item added!"));
+  }).then(()=>alert("Added"));
 }
 </script>
-
-</body>
-</html>
 `);
 });
 
-// ===== START SERVER =====
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running"));
+app.listen(process.env.PORT || 3000);
