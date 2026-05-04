@@ -4,10 +4,12 @@ const app = express();
 
 app.use(express.json());
 
-// ===== CONNECT DB =====
-mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log("DB Connected"))
-.catch(err => console.log(err));
+// ===== DATABASE =====
+if (process.env.MONGO_URI) {
+  mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("DB Connected"))
+    .catch(err => console.log(err));
+}
 
 // ===== MODELS =====
 const Menu = mongoose.model("Menu", {
@@ -20,7 +22,7 @@ const Review = mongoose.model("Review", {
   text: String
 });
 
-// ===== ADMIN LOGIN =====
+// ===== ADMIN =====
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "admin123";
 
@@ -41,7 +43,7 @@ app.get("/api/menu", async (req, res) => {
 app.post("/api/menu", async (req, res) => {
   const item = new Menu(req.body);
   await item.save();
-  res.send("Saved");
+  res.send("Added");
 });
 
 // ===== REVIEWS =====
@@ -63,25 +65,94 @@ app.get("/", (req, res) => {
 <html>
 <head>
 <title>1016 Cafe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 <style>
-body { background:#111; color:white; font-family:sans-serif; }
-.section { padding:40px; }
-.card { background:#222; padding:15px; margin:10px; border-radius:10px; }
+body {
+  margin:0;
+  font-family: 'Segoe UI', sans-serif;
+  background:#0a0a0a;
+  color:white;
+}
+
+.hero {
+  height:80vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:url('https://images.unsplash.com/photo-1509042239860-f550ce710b93') center/cover;
+  position:relative;
+}
+
+.hero::after {
+  content:'';
+  position:absolute;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.6);
+}
+
+.hero-content {
+  position:relative;
+  text-align:center;
+}
+
+.section {
+  padding:50px 20px;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:20px;
+}
+
+.card {
+  background:rgba(255,255,255,0.05);
+  padding:20px;
+  border-radius:15px;
+  backdrop-filter: blur(10px);
+  transition:0.3s;
+}
+
+.card:hover {
+  transform:translateY(-5px);
+}
+
+input, button {
+  padding:10px;
+  margin:5px;
+  border:none;
+  border-radius:8px;
+}
+
+button {
+  background:#c59d5f;
+  color:white;
+  cursor:pointer;
+}
 </style>
 </head>
+
 <body>
 
-<h1>1016 Cafe ☕</h1>
+<div class="hero">
+  <div class="hero-content">
+    <h1>1016 Cafe ☕</h1>
+    <p>Premium Coffee Experience</p>
+  </div>
+</div>
 
 <div class="section">
 <h2>Menu</h2>
-<div id="menu"></div>
+<div id="menu" class="grid"></div>
 </div>
 
 <div class="section">
 <h2>Reviews</h2>
-<div id="reviews"></div>
+<div id="reviews" class="grid"></div>
 
+<br>
 <input id="rname" placeholder="Your name">
 <input id="rtext" placeholder="Your review">
 <button onclick="addReview()">Submit</button>
@@ -92,8 +163,14 @@ fetch('/api/menu')
 .then(r=>r.json())
 .then(d=>{
   const el=document.getElementById('menu');
+  el.innerHTML='';
   d.forEach(i=>{
-    el.innerHTML += '<div class="card">'+i.name+' - $'+i.price+'</div>';
+    el.innerHTML += \`
+      <div class="card">
+        <h3>\${i.name}</h3>
+        <p>$\${i.price}</p>
+      </div>
+    \`;
   });
 });
 
@@ -101,8 +178,14 @@ fetch('/api/reviews')
 .then(r=>r.json())
 .then(d=>{
   const el=document.getElementById('reviews');
+  el.innerHTML='';
   d.forEach(i=>{
-    el.innerHTML += '<div class="card">'+i.name+': '+i.text+'</div>';
+    el.innerHTML += \`
+      <div class="card">
+        <strong>\${i.name}</strong>
+        <p>\${i.text}</p>
+      </div>
+    \`;
   });
 });
 
@@ -123,7 +206,7 @@ function addReview(){
 `);
 });
 
-// ===== ADMIN =====
+// ===== ADMIN PANEL =====
 app.get("/admin", (req, res) => {
   res.send(`
 <h2>Admin Panel</h2>
@@ -146,4 +229,6 @@ function add(){
 `);
 });
 
-app.listen(process.env.PORT || 3000);
+// ===== START =====
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running"));
